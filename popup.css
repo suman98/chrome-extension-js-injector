@@ -20,11 +20,39 @@ header {
 }
 
 h1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 15px;
   margin: 0;
 }
 
+/* --- Icons --- */
+
+.icon-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+.icon-brand {
+  width: 16px;
+  height: 16px;
+  color: #2563eb;
+}
+
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 1px solid #d0d7de;
   background: #f6f8fa;
   color: #1f2328;
@@ -32,6 +60,17 @@ h1 {
   padding: 5px 10px;
   font-size: 12px;
   cursor: pointer;
+}
+
+.btn-icon {
+  padding: 5px;
+  gap: 0;
+}
+
+.btn:focus-visible,
+.drag-handle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
 }
 
 .btn:hover {
@@ -52,6 +91,11 @@ h1 {
   background: #dc2626;
   border-color: #dc2626;
   color: #fff;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .status {
@@ -201,6 +245,36 @@ h1 {
   border: 1px solid #d0d7de;
   border-radius: 6px;
   padding: 6px 8px;
+  background: #fff;
+}
+
+.item.dragging {
+  opacity: 0.55;
+  border-style: dashed;
+  border-color: #2563eb;
+}
+
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: #9aa1a9;
+  cursor: grab;
+  border-radius: 4px;
+}
+
+.drag-handle:hover {
+  color: #1f2328;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.item.dragging .drag-handle {
+  cursor: grabbing;
 }
 
 .item-name {
@@ -217,8 +291,8 @@ h1 {
   flex-shrink: 0;
 }
 
-.item-actions .btn {
-  padding: 4px 8px;
+.item-actions .btn-icon {
+  padding: 5px;
 }
 
 .empty-state {
@@ -240,6 +314,25 @@ h1 {
   .btn:hover {
     background: #3a3d43;
   }
+  .btn-primary,
+  .btn-primary:hover {
+    border-color: transparent;
+    color: #fff;
+  }
+  .btn-primary {
+    background: #2563eb;
+  }
+  .btn-primary:hover {
+    background: #1d4ed8;
+  }
+  .btn-danger {
+    background: #dc2626;
+    border-color: transparent;
+    color: #fff;
+  }
+  .btn-danger:hover {
+    background: #b91c1c;
+  }
   .form,
   .item {
     background: #26272b;
@@ -260,5 +353,17 @@ h1 {
   }
   .empty-state {
     color: #9ca3af;
+  }
+  .icon-brand {
+    color: #60a5fa;
+  }
+  .drag-handle {
+    color: #6b7280;
+  }
+  .drag-handle:hover {
+    color: #e6edf3;
+  }
+  .item.dragging {
+    border-color: #60a5fa;
   }
 }

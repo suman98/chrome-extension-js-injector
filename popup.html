@@ -6,9 +6,42 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
+  <svg class="icon-defs" aria-hidden="true">
+    <defs>
+      <symbol id="i-bolt" viewBox="0 0 24 24">
+        <path d="M13.5 2 4.5 13.5H11l-.5 8.5 9-11.5H13z" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <path d="M8 5.5v13l11-6.5z" />
+      </symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24">
+        <path d="M4 20h4l10-10-4-4L4 16zM14.5 5.5l4 4 1.8-1.8a1.5 1.5 0 0 0 0-2.1l-1.9-1.9a1.5 1.5 0 0 0-2.1 0z" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M9 3h6l1 2h4v2H4V5h4zM6 8h12l-1 12.2A2 2 0 0 1 15 22H9a2 2 0 0 1-2-1.8zm4 3v8h1.5v-8zm4 0v8h1.5v-8z" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="M5 12.5 10 17.5 19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="i-grip" viewBox="0 0 24 24">
+        <circle cx="9" cy="6" r="1.7" />
+        <circle cx="15" cy="6" r="1.7" />
+        <circle cx="9" cy="12" r="1.7" />
+        <circle cx="15" cy="12" r="1.7" />
+        <circle cx="9" cy="18" r="1.7" />
+        <circle cx="15" cy="18" r="1.7" />
+      </symbol>
+    </defs>
+  </svg>
+
   <header>
-    <h1>JS Injector</h1>
-    <button id="newBtn" class="btn btn-primary" type="button">+ New Script</button>
+    <h1><svg class="icon icon-brand" aria-hidden="true"><use href="#i-bolt" /></svg>JS Injector</h1>
+    <button id="newBtn" class="btn btn-primary" type="button">
+      <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>New Script
+    </button>
   </header>
 
   <div id="status" class="status" hidden></div>
@@ -33,14 +66,16 @@
     </div>
 
     <div class="form-actions">
-      <button id="saveBtn" class="btn btn-primary" type="button">Save</button>
+      <button id="saveBtn" class="btn btn-primary" type="button">
+        <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Save
+      </button>
       <button id="cancelBtn" class="btn" type="button">Cancel</button>
     </div>
   </section>
 
   <ul id="list" class="list"></ul>
 
-  <p id="emptyState" class="empty-state" hidden>No scripts yet. Click "+ New Script" to add one.</p>
+  <p id="emptyState" class="empty-state" hidden>No scripts yet. Click "New Script" to add one.</p>
 
   <script src="popup.js"></script>
 </body>

@@ -153,8 +153,7 @@ async function onDelete(index) {
     return;
   }
 
-  clearTimeout(pendingDeleteTimer);
-  pendingDeleteIndex = null;
+  clearPendingDelete();
   const scripts = await getScripts();
   scripts.splice(index, 1);
   await setScripts(scripts);
@@ -193,9 +192,57 @@ async function onRun(index) {
   }
 }
 
+async function moveScript(from, to) {
+  const scripts = await getScripts();
+  if (from === to || from < 0 || to < 0 || from >= scripts.length || to >= scripts.length) return;
+
+  const [moved] = scripts.splice(from, 1);
+  scripts.splice(to, 0, moved);
+  await setScripts(scripts);
+  clearPendingDelete();
+  await render();
+  return to;
+}
+
+function clearPendingDelete() {
+  clearTimeout(pendingDeleteTimer);
+  pendingDeleteIndex = null;
+}
+
+function icon(id) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "icon");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#${id}`);
+  svg.appendChild(use);
+  return svg;
+}
+
+function iconButton(iconId, label, className = "btn") {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `${className} btn-icon`;
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+  btn.appendChild(icon(iconId));
+  return btn;
+}
+
 function createItem(script, index) {
   const li = document.createElement("li");
   li.className = "item";
+  li.dataset.index = String(index);
+
+  const handle = iconButton("i-grip", `Reorder "${script.name}"`, "drag-handle");
+  // Only drags started from the handle should move the row.
+  handle.addEventListener("mousedown", () => {
+    li.draggable = true;
+  });
+  handle.addEventListener("mouseup", () => {
+    li.draggable = false;
+  });
+  handle.addEventListener("keydown", (e) => onHandleKeydown(e, index));
 
   const nameSpan = document.createElement("span");
   nameSpan.className = "item-name";
@@ -205,28 +252,83 @@ function createItem(script, index) {
   const actions = document.createElement("div");
   actions.className = "item-actions";
 
-  const runBtn = document.createElement("button");
-  runBtn.className = "btn btn-primary";
-  runBtn.type = "button";
-  runBtn.textContent = "Run";
+  const runBtn = iconButton("i-play", `Run "${script.name}"`, "btn btn-primary");
   runBtn.addEventListener("click", () => onRun(index));
 
-  const editBtn = document.createElement("button");
-  editBtn.className = "btn";
-  editBtn.type = "button";
-  editBtn.textContent = "Edit";
+  const editBtn = iconButton("i-pencil", `Edit "${script.name}"`);
   editBtn.addEventListener("click", () => showForm(index));
 
-  const deleteBtn = document.createElement("button");
-  deleteBtn.type = "button";
   const isConfirming = pendingDeleteIndex === index;
-  deleteBtn.className = isConfirming ? "btn btn-danger" : "btn";
-  deleteBtn.textContent = isConfirming ? "Confirm?" : "Delete";
+  const deleteBtn = iconButton(
+    isConfirming ? "i-check" : "i-trash",
+    isConfirming ? `Confirm delete "${script.name}"` : `Delete "${script.name}"`,
+    isConfirming ? "btn btn-danger" : "btn"
+  );
   deleteBtn.addEventListener("click", () => onDelete(index));
 
   actions.append(runBtn, editBtn, deleteBtn);
-  li.append(nameSpan, actions);
+  li.append(handle, nameSpan, actions);
+
+  li.addEventListener("dragstart", onDragStart);
+  li.addEventListener("dragover", onDragOver);
+  li.addEventListener("dragend", onDragEnd);
   return li;
+}
+
+/* --- Drag to reorder --- */
+
+let dragIndex = null;
+
+function onDragStart(e) {
+  dragIndex = Number(e.currentTarget.dataset.index);
+  e.currentTarget.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  // Required for the drag to start in some browsers.
+  e.dataTransfer.setData("text/plain", String(dragIndex));
+}
+
+function onDragOver(e) {
+  if (dragIndex === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+
+  const dragging = listEl.querySelector(".dragging");
+  const target = e.currentTarget;
+  if (!dragging || dragging === target) return;
+
+  const rect = target.getBoundingClientRect();
+  const after = e.clientY > rect.top + rect.height / 2;
+  listEl.insertBefore(dragging, after ? target.nextSibling : target);
+}
+
+async function onDragEnd(e) {
+  const li = e.currentTarget;
+  li.draggable = false;
+  li.classList.remove("dragging");
+  const from = dragIndex;
+  dragIndex = null;
+  if (from === null) return;
+
+  const to = [...listEl.children].indexOf(li);
+  if (to === -1 || to === from) {
+    await render(); // Snap back if the drop was cancelled.
+    return;
+  }
+  await moveScript(from, to);
+}
+
+listEl.addEventListener("dragover", (e) => {
+  if (dragIndex !== null) e.preventDefault();
+});
+
+async function onHandleKeydown(e, index) {
+  const delta = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+  if (delta === 0) return;
+  e.preventDefault();
+
+  const moved = await moveScript(index, index + delta);
+  if (moved === undefined) return;
+  listEl.children[moved]?.querySelector(".drag-handle")?.focus();
 }
 
 async function render() {
