@@ -19,5 +19,6 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "scripting", "activeTab"]
+  "permissions": ["storage", "scripting", "activeTab", "userScripts"],
+  "optional_host_permissions": ["<all_urls>"]
 }

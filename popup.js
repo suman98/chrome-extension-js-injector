@@ -80,14 +80,29 @@ async function setScripts(scripts) {
   await chrome.storage.local.set({ [STORAGE_KEY]: scripts });
 }
 
-function showStatus(message, isError = false) {
-  statusEl.textContent = message;
+function showStatus(message, isError = false, action = null) {
+  statusEl.textContent = "";
+  const text = document.createElement("span");
+  text.textContent = message;
+  statusEl.appendChild(text);
+
+  if (action) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn status-action";
+    btn.textContent = action.label;
+    btn.addEventListener("click", action.onClick);
+    statusEl.appendChild(btn);
+  }
+
   statusEl.className = `status ${isError ? "error" : "success"}`;
   statusEl.hidden = false;
   clearTimeout(showStatus._timer);
-  showStatus._timer = setTimeout(() => {
-    statusEl.hidden = true;
-  }, 3000);
+  if (!action) {
+    showStatus._timer = setTimeout(() => {
+      statusEl.hidden = true;
+    }, 3000);
+  }
 }
 
 function showForm(index = null) {
@@ -161,34 +176,199 @@ async function onDelete(index) {
   showStatus("Script deleted.");
 }
 
+/* --- Injection ---
+ * Pages with a strict Content-Security-Policy (no 'unsafe-eval') kill eval() in
+ * the main world, so the code is handed to the page as a real script instead.
+ * Strategies are tried in order of how widely they are allowed:
+ *   1. userScripts API  - exempt from the page CSP, needs the browser toggle.
+ *   2. <script> element - reusing the page's nonce, then plain inline, then a
+ *                         blob: URL, then eval() as a last resort.
+ */
+
+function injectIntoPage(code) {
+  const probeKey = "__jsInjectorProbe_" + Math.random().toString(36).slice(2);
+  const parent = document.head || document.documentElement;
+  const donor = document.querySelector("script[nonce]");
+  const nonce = donor ? donor.nonce || donor.getAttribute("nonce") : "";
+
+  // Pages enforcing Trusted Types reject plain strings on script sinks.
+  let policy = null;
+  if (window.trustedTypes && window.trustedTypes.createPolicy) {
+    try {
+      policy = window.trustedTypes.createPolicy("jsInjector-" + probeKey, {
+        createScript: (s) => s,
+        createScriptURL: (u) => u,
+      });
+    } catch (e) {
+      policy = null;
+    }
+  }
+
+  function runInline(source, useNonce) {
+    const el = document.createElement("script");
+    if (useNonce && nonce) el.setAttribute("nonce", nonce);
+    try {
+      el.textContent = policy ? policy.createScript(source) : source;
+    } catch (e) {
+      return false; // Trusted Types refused the assignment.
+    }
+    parent.appendChild(el);
+    el.remove();
+    return true;
+  }
+
+  // Inline scripts run synchronously on insertion, so a probe tells us whether
+  // this strategy is allowed without running the user's code twice.
+  function inlineAllowed(useNonce) {
+    delete window[probeKey];
+    if (!runInline(`window[${JSON.stringify(probeKey)}]=1`, useNonce)) return false;
+    const ok = window[probeKey] === 1;
+    delete window[probeKey];
+    return ok;
+  }
+
+  function evalFallback() {
+    try {
+      (0, eval)(code);
+      return { ok: true, method: "eval" };
+    } catch (err) {
+      return { ok: false, error: String((err && err.message) || err) };
+    }
+  }
+
+  if (nonce && inlineAllowed(true)) {
+    runInline(code, true);
+    return { ok: true, method: "nonce" };
+  }
+  if (inlineAllowed(false)) {
+    runInline(code, false);
+    return { ok: true, method: "inline" };
+  }
+
+  return new Promise((resolve) => {
+    let url;
+    try {
+      url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    } catch (e) {
+      resolve(evalFallback());
+      return;
+    }
+
+    const el = document.createElement("script");
+    if (nonce) el.setAttribute("nonce", nonce);
+    const done = (result) => {
+      URL.revokeObjectURL(url);
+      el.remove();
+      resolve(result);
+    };
+    el.onload = () => done({ ok: true, method: "blob" });
+    el.onerror = () => done(evalFallback());
+    try {
+      el.src = policy ? policy.createScriptURL(url) : url;
+    } catch (e) {
+      done(evalFallback());
+      return;
+    }
+    parent.appendChild(el);
+  });
+}
+
+async function tryUserScripts(tabId, code, world) {
+  if (!chrome.userScripts?.execute) return null;
+  try {
+    await chrome.userScripts.execute({
+      target: { tabId },
+      js: [{ code }],
+      world,
+      injectImmediately: true,
+    });
+    return world === "MAIN" ? "userScripts" : "userScripts (isolated world)";
+  } catch (err) {
+    return { error: `userScripts/${world}: ${err.message}` };
+  }
+}
+
+async function runInPage(tabId, code) {
+  const failures = [];
+
+  const main = await tryUserScripts(tabId, code, "MAIN");
+  if (typeof main === "string") return main;
+  if (main) failures.push(main.error);
+
+  const [injection] = await chrome.scripting.executeScript({
+    target: { tabId },
+    world: "MAIN",
+    func: injectIntoPage,
+    args: [code],
+  });
+  const result = injection?.result;
+  if (result?.ok) return result.method;
+  failures.push(result?.error || "the page blocked every injection method");
+
+  // Last resort for CSPs that allow neither a nonce, inline code nor blob:.
+  // This world shares the DOM but not the page's JavaScript globals.
+  const isolated = await tryUserScripts(tabId, code, "USER_SCRIPT");
+  if (typeof isolated === "string") return isolated;
+  if (isolated) failures.push(isolated.error);
+
+  const blocked = new Error(failures.join(" | "));
+  blocked.csp = true;
+  throw blocked;
+}
+
+function siteOrigin(url) {
+  try {
+    const parsed = new URL(url);
+    return /^https?:$/.test(parsed.protocol) ? `${parsed.origin}/*` : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// The userScripts API needs host access; activeTab alone is not enough on some
+// pages, so offer the optional permission instead of dead-ending on a CSP.
+async function offerSiteAccess(tab, index) {
+  const origin = siteOrigin(tab.url);
+  if (!origin || (await chrome.permissions.contains({ origins: [origin] }))) return false;
+
+  showStatus("Blocked by this page's CSP. Full access to this site lets it run anyway.", true, {
+    label: "Grant access",
+    onClick: async () => {
+      const granted = await chrome.permissions.request({ origins: [origin] });
+      if (granted) onRun(index);
+      else showStatus("Permission denied.", true);
+    },
+  });
+  return true;
+}
+
 async function onRun(index) {
   const scripts = await getScripts();
   const target = scripts[index];
   if (!target) return;
 
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    showStatus("No active tab found.", true);
+    return;
+  }
+
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) {
-      showStatus("No active tab found.", true);
+    const method = await runInPage(tab.id, target.script);
+    showStatus(`Ran "${target.name}".`);
+    console.debug(`JS Injector: injected via ${method}.`);
+  } catch (err) {
+    if (!err.csp) {
+      showStatus(`Injection failed: ${err.message}`, true);
       return;
     }
-
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      world: "MAIN",
-      func: (code) => {
-        try {
-          (0, eval)(code);
-        } catch (err) {
-          console.error("JS Injector script error:", err);
-        }
-      },
-      args: [target.script],
-    });
-
-    showStatus(`Ran "${target.name}".`);
-  } catch (err) {
-    showStatus(`Injection failed: ${err.message}`, true);
+    if (await offerSiteAccess(tab, index)) return;
+    showStatus(
+      chrome.userScripts
+        ? "Blocked by this page's Content Security Policy."
+        : 'Blocked by this page\'s CSP. Turn on "Allow user scripts" for this extension on the browser\'s extensions page, then retry.',
+      true
+    );
   }
 }
 

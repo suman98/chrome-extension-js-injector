@@ -99,10 +99,23 @@ h1 {
 }
 
 .status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 6px 8px;
   border-radius: 6px;
   margin-bottom: 10px;
   font-size: 12px;
+}
+
+.status[hidden] {
+  display: none;
+}
+
+.status-action {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 3px 8px;
 }
 
 .status.success {
