@@ -12,7 +12,11 @@ const codeHighlight = document.getElementById("codeHighlight").querySelector("co
 const newBtn = document.getElementById("newBtn");
 const saveBtn = document.getElementById("saveBtn");
 const cancelBtn = document.getElementById("cancelBtn");
+const searchRow = document.getElementById("searchRow");
+const searchInput = document.getElementById("searchInput");
+const clearSearchBtn = document.getElementById("clearSearchBtn");
 
+let query = "";
 let editingIndex = null;
 let pendingDeleteIndex = null;
 let pendingDeleteTimer = null;
@@ -409,12 +413,55 @@ function iconButton(iconId, label, className = "btn") {
   return btn;
 }
 
+/* --- Search --- */
+
+function fillName(el, name) {
+  const at = query ? name.toLowerCase().indexOf(query.toLowerCase()) : -1;
+  if (at === -1) {
+    el.textContent = name;
+    return;
+  }
+  const hit = document.createElement("mark");
+  hit.textContent = name.slice(at, at + query.length);
+  el.append(name.slice(0, at), hit, name.slice(at + query.length));
+}
+
+function clearSearch() {
+  if (!query && !searchInput.value) return;
+  searchInput.value = "";
+  query = "";
+  render();
+}
+
+searchInput.addEventListener("input", () => {
+  query = searchInput.value.trim();
+  clearPendingDelete();
+  render();
+});
+
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  e.preventDefault();
+  clearSearch();
+});
+
+clearSearchBtn.addEventListener("click", () => {
+  clearSearch();
+  searchInput.focus();
+});
+
 function createItem(script, index) {
   const li = document.createElement("li");
   li.className = "item";
   li.dataset.index = String(index);
 
+  // Rows are addressed by their position in storage, which a filtered list no
+  // longer matches, so reordering waits until the search is cleared.
   const handle = iconButton("i-grip", `Reorder "${script.name}"`, "drag-handle");
+  if (query) {
+    handle.disabled = true;
+    handle.title = "Clear the search to reorder";
+  }
   // Only drags started from the handle should move the row.
   handle.addEventListener("mousedown", () => {
     li.draggable = true;
@@ -426,8 +473,8 @@ function createItem(script, index) {
 
   const nameSpan = document.createElement("span");
   nameSpan.className = "item-name";
-  nameSpan.textContent = script.name;
   nameSpan.title = script.name;
+  fillName(nameSpan, script.name);
 
   const actions = document.createElement("div");
   actions.className = "item-actions";
@@ -515,13 +562,24 @@ async function render() {
   const scripts = await getScripts();
   listEl.innerHTML = "";
 
-  if (scripts.length === 0) {
+  searchRow.hidden = scripts.length < 2 && !query;
+  clearSearchBtn.hidden = !query;
+
+  const needle = query.toLowerCase();
+  const matches = scripts
+    .map((script, index) => ({ script, index }))
+    .filter(({ script }) => script.name.toLowerCase().includes(needle));
+
+  if (matches.length === 0) {
+    emptyStateEl.textContent = query
+      ? `No scripts match "${query}".`
+      : 'No scripts yet. Click "New Script" to add one.';
     emptyStateEl.hidden = false;
     return;
   }
   emptyStateEl.hidden = true;
 
-  scripts.forEach((script, index) => {
+  matches.forEach(({ script, index }) => {
     listEl.appendChild(createItem(script, index));
   });
 }

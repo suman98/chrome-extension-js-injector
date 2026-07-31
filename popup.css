@@ -67,6 +67,10 @@ h1 {
   gap: 0;
 }
 
+.btn[hidden] {
+  display: none;
+}
+
 .btn:focus-visible,
 .drag-handle:focus-visible {
   outline: 2px solid #2563eb;
@@ -96,6 +100,62 @@ h1 {
 .btn-danger:hover {
   background: #b91c1c;
   border-color: #b91c1c;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 0 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+}
+
+.search[hidden] {
+  display: none;
+}
+
+.search:focus-within {
+  border-color: #2563eb;
+}
+
+.search-icon {
+  color: #6b7280;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 7px 0;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.search input:focus {
+  outline: none;
+}
+
+.search-clear {
+  border: 0;
+  background: none;
+  color: #6b7280;
+  padding: 2px;
+}
+
+.search-clear:hover {
+  background: none;
+  color: inherit;
+}
+
+mark {
+  background: #fde68a;
+  color: inherit;
+  border-radius: 2px;
 }
 
 .status {
@@ -282,6 +342,15 @@ h1 {
   color: #1f2328;
 }
 
+.drag-handle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.drag-handle:disabled:hover {
+  color: #9aa1a9;
+}
+
 .drag-handle:active {
   cursor: grabbing;
 }
@@ -369,6 +438,21 @@ h1 {
   }
   .icon-brand {
     color: #60a5fa;
+  }
+  .search {
+    background: #26272b;
+    border-color: #3d3f45;
+  }
+  .search:focus-within {
+    border-color: #60a5fa;
+  }
+  .search-icon,
+  .search-clear {
+    color: #9ca3af;
+  }
+  mark {
+    background: #78560a;
+    color: #fef3c7;
   }
   .drag-handle {
     color: #6b7280;
