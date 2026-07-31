@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "JS Injector",
+  "version": "1.0.0",
+  "description": "Save multiple JavaScript scripts and inject them into any website on demand.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JS Injector"
+  },
+  "permissions": ["storage", "scripting", "activeTab"]
+}

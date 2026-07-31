@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>JS Injector</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>JS Injector</h1>
+    <button id="newBtn" class="btn btn-primary" type="button">+ New Script</button>
+  </header>
+
+  <div id="status" class="status" hidden></div>
+
+  <section id="form" class="form" hidden>
+    <input id="nameInput" type="text" placeholder="Script name" maxlength="100" />
+
+    <div class="code-editor" id="codeEditor">
+      <div class="code-editor-gutter" id="codeGutter"><div>1</div></div>
+      <div class="code-editor-body">
+        <pre class="code-editor-highlight" id="codeHighlight"><code></code></pre>
+        <textarea
+          id="codeInput"
+          class="code-editor-input"
+          placeholder="// Your JavaScript code here"
+          spellcheck="false"
+          wrap="off"
+          autocapitalize="off"
+          autocomplete="off"
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button id="saveBtn" class="btn btn-primary" type="button">Save</button>
+      <button id="cancelBtn" class="btn" type="button">Cancel</button>
+    </div>
+  </section>
+
+  <ul id="list" class="list"></ul>
+
+  <p id="emptyState" class="empty-state" hidden>No scripts yet. Click "+ New Script" to add one.</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
